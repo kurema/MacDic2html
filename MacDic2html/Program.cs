@@ -99,7 +99,7 @@ namespace MacDic2html
                                 switch (reader.Name.ToLower())
                                 {
                                     case "br": sbCurrent.Append("<br />"); break;
-                                    case "img": sbCurrent.Append("<a href=\"" + tag.Attributes["src"] + "\">"); break;
+                                    case "img": sbCurrent.Append("<a href=\"" + tag.Attributes["src"] + "\"></a>"); break;
                                 }
                                 lastTag = new List<Tag>(tags);
                             }
