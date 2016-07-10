@@ -170,16 +170,28 @@ namespace MacDic2html
 
                                     {
                                         var property = FindProperty(dec, "font-weight");
-                                        if (property!=null && property.Term.ToString().ToLower() != "normal")
+                                        if (property!=null && property.Term.ToString().ToLower() != "normal" && !onClosing.Contains("</b>"))
                                         {
                                             sbCurrent.Append("<b>"); closingString = "</b>" + closingString;
                                         }
                                     }
-
+                                    
                                     {
-                                        if (FindProperty(dec, "font-style")?.Term.ToString().ToLower() == "italic")
+                                        if (FindProperty(dec, "font-style")?.Term.ToString().ToLower() == "italic" && !onClosing.Contains("</i>"))
                                         {
                                             sbCurrent.Append("<i>"); closingString = "</i>" + closingString;
+                                        }
+                                    }
+                                    {
+                                        if (FindProperty(dec, "vertical-align")?.Term.ToString().ToLower() == "sub")
+                                        {
+                                            sbCurrent.Append("<sub>"); closingString = "</sub>" + closingString;
+                                        }
+                                    }
+                                    {
+                                        if (FindProperty(dec, "vertical-align")?.Term.ToString().ToLower() == "super")
+                                        {
+                                            sbCurrent.Append("<sup>"); closingString = "</sup>" + closingString;
                                         }
                                     }
                                 }
@@ -196,7 +208,7 @@ namespace MacDic2html
                                                 sbCurrent.Append("<dt>");
                                             }
 
-                                            closingString = "</dt><keys /><dd>" + closingString;
+                                            closingString = "</dt>\n<keys /><dd>" + closingString;
                                         }
                                     }
                                     {
@@ -210,18 +222,24 @@ namespace MacDic2html
                                         var property = FindProperty(dec2, "key");
                                         if (property != null)
                                         {
-                                            keyLevel = tags.Count-1;
-                                            ClosingActions.Add(tags.Count - 1, () => { sbKey.AppendLine("</key>"); keyLevel = -1; });
-                                            sbKey.Append("<key type=\""+property.Term.ToString()+"\">");
+                                            var addTarget = "<key type=\"" + property.Term.ToString() + "\">";
+                                            {
+                                                keyLevel = tags.Count - 1;
+                                                ClosingActions.Add(tags.Count - 1, () => { sbKey.AppendLine("</key>"); keyLevel = -1; });
+                                                sbKey.Append(addTarget);
+                                            }
                                         }
                                     }
                                     {
                                         var property = FindProperty(dec2, "category");
                                         if (property != null)
                                         {
-                                            keyLevel = tags.Count - 1;
-                                            ClosingActions.Add(tags.Count - 1, () => { sbKey.AppendLine("</key>"); keyLevel = -1; });
-                                            sbKey.Append("<key type=\"複合\" name=\"" + property.Term.ToString() + "\">");
+                                            var addTarget = "<key type=\"複合\" name=\"" + property.Term.ToString() + "\">";
+                                            {
+                                                keyLevel = tags.Count - 1;
+                                                ClosingActions.Add(tags.Count - 1, () => { sbKey.AppendLine("</key>"); keyLevel = -1; });
+                                                sbKey.Append(addTarget);
+                                            }
                                         }
                                     }
                                     {
@@ -302,15 +320,16 @@ namespace MacDic2html
                             }
                             break;
                         case XmlNodeType.Text:
-                            sbCurrent.Append(reader.Value);
+                            sbCurrent.Append(EscapeHtml(reader.Value));
                             if (keyLevel!=-1&& keyLevel < tags.Count)
                             {
-                                var sjis = Encoding.GetEncoding(932, new EncoderReplacementFallback(""), new DecoderReplacementFallback(""));
-                                sbKey.Append(sjis.GetString(sjis.GetBytes(reader.Value)));
+                                //var sjis = Encoding.GetEncoding(932, new EncoderReplacementFallback(""), new DecoderReplacementFallback(""));
+                                //sbKey.Append(sjis.GetString(sjis.GetBytes(reader.Value)));
+                                sbKey.Append(EscapeHtml(reader.Value)); 
                             }
                             if (linkedTitleLevel != -1 && linkedTitleLevel < tags.Count)
                             {
-                                linkedTitle.Append(reader.Value+" ");
+                                linkedTitle.Append(EscapeHtml(reader.Value)+" ");
                             }
                             break;
                         case XmlNodeType.Comment:
@@ -335,6 +354,17 @@ namespace MacDic2html
 
             linked = DeleteDoubleBreak(sbLinked.ToString());
             html= DeleteDoubleBreak(sbHtml.ToString());
+        }
+
+        static string EscapeHtml(string src)
+        {
+            return src.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("\"", "&quot;").Replace("'", "&apos;");
+        }
+
+        static string AddTextIfNotAlreadyExist(string target,string text)
+        {
+            if (target.Contains(text)) { return target; }
+            return target + text;
         }
 
         static string ReplaceRepeatRegex(string org, string from, string to)
@@ -429,6 +459,15 @@ namespace MacDic2html
                     var currentTag = tags[i];
                     var sStr = s.ToString();
                     var classes = currentTag.Attributes.Keys.Contains("class") ? currentTag.Attributes["class"].Split(' ') : new string[0];
+
+                    if (classes.Count() > 1)
+                    {
+                        var tn = "." + string.Join(".", classes);
+                        if (sStr == tn || sStr == currentTag.Name + tn)
+                        {
+                            return i;
+                        }
+                    }
                     foreach (var className in classes)
                     {
                         if (sStr == "*" || sStr == currentTag.Name || sStr == "." + className || sStr == "*." + className || sStr == currentTag.Name + "." + className)
@@ -506,7 +545,8 @@ namespace MacDic2html
             }
             else
             {
-                throw new NotImplementedException();
+                return -1;
+                //throw new NotImplementedException();
             }
         }
 
